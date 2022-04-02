@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Order;
+use App\Observers\OrderObserver;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -18,6 +20,14 @@ class EventServiceProvider extends ServiceProvider
         Registered::class => [
             SendEmailVerificationNotification::class,
         ],
+
+        /**
+         * Notificar que se ha registrado una nueva orden al usuario
+         * mediante un listener ejecutando unn email
+         */
+        'App\Events\NewOrderNotificationEvent' => [
+            'App\Listerners\NewOrderNotificationListener',
+        ],
     ];
 
     /**
@@ -27,6 +37,7 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        // manipula los eventos de inserción de ordenes en logs
+        Order::observe(OrderObserver::class);
     }
 }

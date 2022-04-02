@@ -1,7 +1,8 @@
 <script setup>
 import BreezeAuthenticatedLayout from "@/Layouts/Authenticated.vue";
 import { Head, usePage, Link, useForm } from "@inertiajs/inertia-vue3";
-import { computed } from "vue";
+import { computed, reactive } from "vue";
+import Toast from "@/Components/custom/Toast.vue";
 
 defineProps({
     products: {
@@ -77,6 +78,15 @@ const totalOrder = computed(() => {
     return parseFloat(total * TAX).toFixed(2);
 });
 
+// config del toast
+const toast = reactive({
+    message: "",
+    bg: "bg-gray-100",
+    icon: "check",
+    show: false,
+});
+
+
 const form = useForm({
     products: [],
     total: 0,
@@ -91,10 +101,15 @@ const createOrder = () => {
     // enviar la orden
     form.post(route("orders.store"), {
         onFinish: () => {
+
+            // reset form
             form.products = [];
             form.total = 0;
             form.comment = "";
-            // location.href = route("orders.index");
+
+            // mostrar el toast
+            toast.message = "Orden creada correctamente";
+            toast.show = true;
         },
         onError: (error) => {
             console.log(error);
@@ -106,6 +121,14 @@ const createOrder = () => {
 
 <template>
     <Head title="Ordenes" />
+
+    <Toast
+        :message="toast.message"
+        :bg="toast.bg"
+        :icon="toast.icon"
+        :show="toast.show"
+        @close-toast="toast.show = false"
+    />
 
     <BreezeAuthenticatedLayout>
         <div class="py-12">
@@ -163,14 +186,14 @@ const createOrder = () => {
                                                 {{ product.name }}
                                             </h2>
                                             <p class="mt-1">
-                                                {{ product.price }}
+                                                {{ product.currency }} {{ product.price }}
                                             </p>
 
                                             <!-- cantidad -->
                                             <div
-                                                class="flex items-center justify-between mt-4 w-full md:w-4/5 mx-auto"
+                                                class="flex items-center justify-center mt-4 w-full"
                                             >
-                                                <div class="flex items-center">
+                                                <div class="flex items-center justify-center">
                                                     <button
                                                         type="button"
                                                         @click="

@@ -23,3 +23,4 @@ Route::get('/dashboard', function () {
 
 // -------------- ordenes --------------
 Route::resource('/orders', OrderController::class)->middleware(['auth', 'verified']);
+Route::get('/orders/{order}/pdf', [OrderController::class, 'downloadPDF'])->middleware(['auth', 'verified'])->name('orders.pdf');

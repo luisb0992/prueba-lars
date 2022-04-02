@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Utils\Currency;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +30,23 @@ class Product extends Model
     ];
 
     /**
+     * Los atributos adicionales ocultos del modelo
+     *
+     * @var array
+     */
+    protected $appends = ['currency'];
+
+    /**
+     * devuelve el tipo de moneda de la orden
+     *
+     * @return string
+     */
+    public function getCurrencyAttribute()
+    {
+        return Currency::USD_SYMBOL;
+    }
+
+    /**
      * devuelve la relacion de muchos a uno con la tabla orders
      *
      * @return HasMany
@@ -47,6 +65,18 @@ class Product extends Model
     public function updateStock(int $quantity): void
     {
         $this->quantity -= $quantity;
+        $this->save();
+    }
+
+    /**
+     * Actualiza el stock de un producto sumando la cantidad
+     *
+     * @param integer $quantity         la cantidad a actualizar
+     * @return void
+     */
+    public function giveBackStock(int $quantity): void
+    {
+        $this->quantity += $quantity;
         $this->save();
     }
 

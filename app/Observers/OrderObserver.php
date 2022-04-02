@@ -40,7 +40,11 @@ class OrderObserver
      */
     public function deleted(Order $order)
     {
-        //
+        // crear un log cuando se elmina una orden
+        $order->logs()->create([
+            'message' => 'Se ha eliminado una orden',
+            'process' => 'deleted',
+        ]);
     }
 
     /**

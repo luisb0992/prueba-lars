@@ -7,7 +7,10 @@ use App\Http\Requests\CreateOrderRequest;
 use App\Models\Order;
 use App\Models\Product;
 use App\Utils\OrderStatus;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -23,8 +26,11 @@ class OrderController extends Controller
      */
     public function index(): Response
     {
+        // cargar los productos de cada orden
+        $orders = Order::with('products')->get();
+
         return Inertia::render('Orders/Index', [
-            'orders' => Order::all(),
+            'orders' => $orders,
         ]);
     }
 
@@ -48,29 +54,33 @@ class OrderController extends Controller
      */
     public function store(CreateOrderRequest $request)
     {
-        $tax = 16;
 
+        // datos de la orden
         $data = [
             'order_number' => rand(1, 1000),
-            'tax' => $tax,
+            'tax' => Order::TAX,
             'total' => $request->total,
             'comment' => $request->comment,
             'status' => OrderStatus::COMPLETED,
         ];
 
-        $order = DB::transaction(function () use ($request, $data) {
+        // seleccionar los ids de los productos
+        $ids = collect($request->products)->pluck('id');
 
-            // seleccionar los ids de los productos
-            $ids = collect($request->products)->pluck('id');
+        // cantidad de productos comprados
+        $quantities = collect($request->products)->pluck('quantity');
 
-            // cantidad de productos comprados
-            $quantities = collect($request->products)->pluck('quantity');
+        $order = DB::transaction(function () use ($ids, $quantities, $data) {
 
             // crear la orden
             $order = Auth::user()->orders()->create($data);
 
-            // relacionar los productos y la orden
-            $order->products()->attach($ids);
+            // relacionar los productos y la orden, y asignar la cantidad correspondiente a cada producto
+            foreach ($ids as $key => $id) {
+                $order->products()->attach($id, [
+                    'quantity' => $quantities[$key],
+                ]);
+            }
 
             // una vez creada descontar del stock de productos que se compraron
             foreach ($ids as $key => $id) {
@@ -80,6 +90,12 @@ class OrderController extends Controller
 
             return $order;
         });
+
+        if (!$order) {
+            return response()->json([
+                'message' => 'Error al crear la orden',
+            ], 500);
+        }
 
         // notificar al usuario
         event(new NewOrderNotificationEvent($order));
@@ -122,13 +138,44 @@ class OrderController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Elimina una orden
      *
      * @param  \App\Models\Order  $order
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy(Order $order)
+    public function destroy(Order $order): JsonResponse
     {
-        //
+
+        // actualizar el status de la orden
+        $order->update([
+            'status' => OrderStatus::CANCELED,
+        ]);
+
+        // actualizar las cantidad de productos en stock
+        foreach ($order->products as $product) {
+            $product->giveBackStock($product->pivot->quantity);
+        }
+
+        // eliminar la orden
+        $order->delete();
+
+        return response()->json([
+            'message' => 'Orden eliminada correctamente',
+        ]);
+    }
+
+    /**
+     * Genera una factura en PDF
+     *
+     * @param Order $order
+     * @return HttpResponse
+     */
+    public function downloadPDF(Order $order)
+    {
+        $pdf = PDF::loadView('orders.pdf.order', [
+            'order' => $order,
+        ]);
+
+        return $pdf->stream('order.pdf');
     }
 }

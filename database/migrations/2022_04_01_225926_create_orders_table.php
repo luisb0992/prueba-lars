@@ -21,6 +21,7 @@ class CreateOrdersTable extends Migration
             $table->decimal('total', 8, 2);
             $table->text('comment');
             $table->integer('status');
+            $table->softDeletes();
             $table->timestamps();
         });
     }
